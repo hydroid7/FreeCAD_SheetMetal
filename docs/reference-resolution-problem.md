@@ -72,7 +72,7 @@ g3;SKT;:H100f,E;:G;XTR;:H100f:7,F;:U;XTR;:H100f:7,E;:H,E
 
 ## 3. A concrete failing case
 
-File: `Test.FCStd` in the repository root (a PartDesign body).
+File: `SMTests/data/HoleSplitsEdge.FCStd` (a PartDesign body).
 
 ```
 Sketch -> BaseBend -> Bend -> Bend001 -> Bend002 -> Sketch001 -> Hole -> Bend003
@@ -195,7 +195,8 @@ Open questions for the proposal:
 * Existing tests: `flatpak run --command=FreeCADCmd org.freecad.FreeCAD
   -t TestSheetMetal` (114 tests; reference tests in `SMTests/testTNP.py`,
   classes `TestTNPWalls`, `TestTNPReferences`, `TestTNPRecovery`).
-* The case in section 3 (`Test.FCStd`, vary `Hole.Diameter` from 10 to 60).
+* The case in section 3 (`SMTests/data/HoleSplitsEdge.FCStd`, vary
+  `Hole.Diameter` from 10 to 60).
 * A proposed benchmark: generated chains as in section 6, reporting for
   each edit type the rate of correct, refused and **wrong** resolutions.
   Wrong resolutions are the metric that matters most.
