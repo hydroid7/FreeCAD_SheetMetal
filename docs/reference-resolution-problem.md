@@ -60,7 +60,13 @@ g3;SKT;:H100f,E;:G;XTR;:H100f:7,F;:U;XTR;:H100f:7,E;:H,E
   cut touches the element, a refine step merges it, it is split into two)
   produces a different name and the reference is reported lost.
 * Long names are hashed (`#312`), so similarity between names is only
-  visible after decoding through the string table.
+  visible after decoding through the string table. Decoding works from
+  Python: `shape.Hasher.getID(0x312).Data` returns the stored text (which
+  can contain further `#refs`); `shape.Hasher` can be `None`. See
+  [TNP.md](TNP.md) section 4.
+* The grammar is richer than the examples above: parenthesized groups
+  follow `:G` as well as `:L` and can contain `;`, `|` and `K-<n>` weight
+  markers, e.g. `Edge1;:G(Face5;K-1;:Hce4:4,F);CUT;:Hce5:1c,V`.
 
 ### 2.2 What FreeCAD itself does when the name is missing
 
@@ -77,6 +83,12 @@ File: `SMTests/data/HoleSplitsEdge.FCStd` (a PartDesign body).
 ```
 Sketch -> BaseBend -> Bend -> Bend001 -> Bend002 -> Sketch001 -> Hole -> Bend003
 ```
+
+The file is saved with `Hole.Diameter = 36` and the reference of `Bend003`
+already lost (`baseObject` sub `?Edge98`, pointing at a wrong ~1 mm edge).
+Setting the diameter to 20 and recomputing makes FreeCAD re-find the edge
+from the stored shadow name; tests use that to record the true reference
+line before sweeping the diameter.
 
 Bend003 is a wall on a straight 53 mm edge at the bottom of a wall made by
 Bend002. The Hole (diameter D) passes close to that edge.
@@ -200,3 +212,17 @@ Open questions for the proposal:
 * A proposed benchmark: generated chains as in section 6, reporting for
   each edit type the rate of correct, refused and **wrong** resolutions.
   Wrong resolutions are the metric that matters most.
+
+## 8. Adopted solution plan
+
+A complete implementation plan for a scored resolver — unified hand-tuned
+scoring over name/geometry/topology features with a calibrated refuse
+threshold, richer recorded evidence, a benchmark generator, and a learned
+scorer with pure-Python inference — lives in
+[tnp_fix/](tnp_fix/README.md), together with prepared tests. It commits to
+answers for the open questions in section 6: hand-tuned scoring first with
+the same feature set, a logistic model trained on the generated benchmark
+as a drop-in replacement for the weighted sum, threshold calibration
+against a Wilson bound on the wrong rate, a per-reference report property
+for surfacing low-confidence results, and a note on which parts are
+workbench-independent.

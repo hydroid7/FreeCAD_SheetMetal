@@ -51,6 +51,13 @@ Common operation codes (`src/Mod/Part/App/TopoShapeOpCode.h`): `FUS` fuse,
 thickness, `OFS` offset, `XFM` transform, `SKT` sketch, `FAC` face maker.
 Markers: `:M` modified, `:G` generated, `:U` upper element, `:H` tag.
 
+Markers can carry parenthesized groups — after `:L` (see 3.3) and also
+after `:G`, as in `Edge1;:G(Face5;K-1;:Hce4:4,F);CUT;:Hce5:1c,V` (captured
+live from a `Part::Cut` with an untagged tool in FreeCAD 1.1.4). Groups
+may nest, contain `;` and `|`, and hold `K-<n>` weight markers, so
+anything parsing these names must split on `;` only at parenthesis
+depth 0.
+
 An element that has no entry in the map is *unnamed*. It can still be
 addressed by its index name, but nothing protects that index.
 
@@ -191,6 +198,11 @@ again). Every recovery prints a warning naming the elements used. All
 features read their references through it. Tests:
 `TestTNPRecovery` in `SMTests/testTNP.py`.
 
+A scored replacement for this resolver — a structured name parser with
+hash decoding, richer recorded evidence, a confidence score with a
+*refuse* outcome, a calibration benchmark and an optional learned model —
+is specified, with prepared tests, in [tnp_fix/](tnp_fix/README.md).
+
 ## 3. Rules for SheetMetal code
 
 ### 3.1 Checklist
@@ -304,11 +316,21 @@ shape.getElementMappedName(name)                 # '' => unnamed, fragile
 shape.getElementIndexedName(mapped)              # reverse lookup
 shape.getElementHistory(mapped)                  # (sourceTag, sourceName, [...])
 
+# long names are hashed ('#312:9;...'); decode through the string table:
+shape.Hasher                                     # App.StringHasher, or None
+shape.Hasher.getID(0x312).Data                   # '#216:;:H1012,E;:H,E'
+
 # naming coverage of a feature's output
 vals = set(shape.ElementMap.values())
 [f"Face{i+1}" for i in range(len(shape.Faces)) if f"Face{i+1}" not in vals]
 ```
 
+* `#<hex>` tokens are ids in the document string table:
+  `shape.Hasher.getID(int(hex, 16)).Data` returns the stored text, which
+  can itself contain further `#refs` (recurse with a depth cap).
+  `shape.Hasher` is `None` in documents where hashing never kicked in, and
+  the document object only exposes `UseHasher` — always take the hasher
+  from the shape. `getElementHistory` accepts hashed names directly.
 * Look for `missing element reference` lines in the report view; they show
   the mapped name that could not be found.
 * Unzip the `.FCStd` and grep `Document.xml` for `shadow=` to see what was
