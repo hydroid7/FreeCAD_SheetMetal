@@ -136,7 +136,7 @@ class SMRelief:
         """
         # Pass selected object shape.
         Main_Object = fp.baseObject[0].Shape.copy()
-        fp.Shape = smRelief(relief=fp.relief.Value, selVertexNames=fp.baseObject[1],
+        fp.Shape = smRelief(relief=fp.relief.Value, selVertexNames=SheetMetalTools.smResolveSubElements(fp),
                             MainObject=Main_Object)
         SheetMetalTools.smHideObjects(fp.baseObject[0])
 

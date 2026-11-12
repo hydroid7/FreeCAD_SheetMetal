@@ -350,7 +350,7 @@ class SMHem:
 
         # Pass selected object shape.
         Main_Object = fp.baseObject[0].Shape.copy()
-        face = fp.baseObject[1]
+        face = SheetMetalTools.smResolveSubElements(fp)
         thk, thkDir = sheet_thk(Main_Object, face[0])
 
         # Gap value needed for first bend set only.

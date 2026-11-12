@@ -35,11 +35,13 @@ from SMTests.helpers import (
     PLATE,
     THK,
     TOL,
+    backEdge,
     cornerBendEdges,
     findElement,
     findVertex,
     isLine,
     makeBase,
+    makePlate,
     makeCornerWall,
     makeSketch,
     makeWall,
@@ -488,3 +490,68 @@ class TestTNPReferences(unittest.TestCase):
             self.wall.length = 35.0
 
         self.assertReferenceFollows(unfold, self.flatSide(1), change)
+
+
+class TestTNPRecovery(unittest.TestCase):
+    """References FreeCAD loses because an upstream cut starts to split the
+    referenced edge (see SheetMetalTools.smResolveSubElements)."""
+
+    def setUp(self):
+        self.doc = FreeCAD.newDocument("TestTNPRecovery")
+        _sketch, base = makePlate(self.doc)
+        self.wall1 = makeWall(self.doc, base, [backEdge(base.Shape)], "Wall1")
+        self.doc.recompute()
+        # A hole through Wall1 below its top edge, like a PartDesign Hole.
+        self.tool = self.doc.addObject("Part::Cylinder", "HoleTool")
+        self.tool.Radius = 2
+        self.tool.Height = 20
+        self.tool.Placement = FreeCAD.Placement(Vector(50, 40, 17),
+                                                FreeCAD.Rotation(Vector(1, 0, 0), -90))
+        self.cut = self.doc.addObject("Part::Cut", "Hole")
+        self.cut.Base = self.wall1
+        self.cut.Tool = self.tool
+        self.doc.recompute()
+        shape = self.cut.Shape
+        self.zmax, self.ymax = shape.BoundBox.ZMax, shape.BoundBox.YMax
+        edge = findElement(shape, "Edge", self.onTopEdge)
+        self.line = (shape.getElement(edge).Vertexes[0].Point, Vector(1, 0, 0))
+        self.wall2 = makeWall(self.doc, self.cut, [edge], "Wall2")
+        self.doc.recompute()
+
+    def tearDown(self):
+        FreeCAD.closeDocument(self.doc.Name)
+
+    def onTopEdge(self, e):
+        return (isLine(e) and e.BoundBox.XLength > 1 and abs(e.BoundBox.ZMin - self.zmax) < TOL
+                and abs(e.BoundBox.YMin - self.ymax) < TOL)
+
+    def resolved(self):
+        import SheetMetalTools
+
+        return SheetMetalTools.smResolveSubElements(self.wall2)
+
+    def testSplitEdgeIsFollowed(self):
+        self.tool.Radius = 8  # now cuts through the top edge
+        self.doc.recompute()
+        self.assertTrue(self.wall2.baseObject[1][0].startswith("?"), "FreeCAD kept the name")
+        self.assertFalse("Invalid" in self.wall2.State)
+        pieces = self.resolved()
+        self.assertEqual(len(pieces), 2)
+        for name in pieces:
+            self.assertTrue(self.onTopEdge(self.cut.Shape.getElement(name)), name)
+        # Wall2 is the wall built directly on both pieces.
+        expected = makeWall(self.doc, self.cut, pieces, "Expected")
+        self.doc.recompute()
+        self.assertAlmostEqual(self.wall2.Shape.Volume, expected.Shape.Volume, places=6)
+        self.assertTrue(self.wall2.Shape.isSame(expected.Shape)
+                        or abs(self.wall2.Shape.common(expected.Shape).Volume
+                               - expected.Shape.Volume) < 1e-6)
+
+    def testOriginalEdgeReturns(self):
+        self.tool.Radius = 8
+        self.doc.recompute()
+        self.tool.Radius = 2
+        self.doc.recompute()
+        sub = self.wall2.baseObject[1][0]
+        self.assertFalse(sub.startswith("?"), "FreeCAD did not find the edge again")
+        self.assertTrue(self.onTopEdge(self.cut.Shape.getElement(sub)))

@@ -158,6 +158,39 @@ are kept, prefixed by the feature's tag.
   `src/App/PropertyLinks.cpp`). SheetMetal cannot avoid this; features fall
   back to the old index with a warning (`getElementFromTNP`).
 
+### 2.5 Recovering lost references
+
+Most lost references in practice come from the case above: an upstream
+change starts (or stops) modifying the referenced element. Typical: a
+PartDesign Hole grows until it cuts through the edge a later Wall sits on.
+The edge's name `#312:9;:H1013,E` (copied unchanged by the Hole) is gone;
+the two pieces are now `#312:9;:M;CUT;:H1013:7,E` and
+`#312:9;:M2;CUT;:H1013:8,E`. FreeCAD marks the link `?Edge98` and keeps
+the old index, which now points at an unrelated edge.
+
+`SheetMetalTools.smResolveSubElements(fp)` returns the sub-elements a
+feature should build with. For a lost reference it:
+
+1. reads the saved mapped name (Python has no API for it; it is taken from
+   `dumpPropertyContent`, see `smGetShadowNames`),
+2. shortens the name one operation at a time until elements of the new
+   shape are copies (`:H`) or modifications (`:M`) of what is left
+   (`smHistoryCandidates`); a prefix must still carry a tag, hash or
+   sketch geometry ID, so a bare `Edge9` never matches,
+3. keeps the candidates that lie where the element was (same line and
+   overlapping, same circle, same plane...), using the geometry remembered
+   in the hidden property `smRefGeometry` the last time the reference was
+   followed normally (`smGeometryMatches`); with no name candidates, it
+   searches all elements by that geometry,
+4. returns all matches, largest first. A split edge gives a wall along all
+   pieces; features that need one face take the largest.
+
+The link property is not rewritten, so FreeCAD keeps looking for the
+original name and resumes when the change is undone (hole made small
+again). Every recovery prints a warning naming the elements used. All
+features read their references through it. Tests:
+`TestTNPRecovery` in `SMTests/testTNP.py`.
+
 ## 3. Rules for SheetMetal code
 
 ### 3.1 Checklist
@@ -313,7 +346,7 @@ tests are in `SMTests/testTNP.py`.
 | Corner relief (`SheetMetalCornerReliefCmd.py`)     | coverage, refs (manual probe, size change) |
 | Wrap cutout (`SketchOnSheetMetalCmd.py`)           | coverage, refs (manual probe, deleting another circle); names come from the sketch |
 | Forming (`SheetMetalFormingCmd.py`)                | coverage, refs (manual probe, deleting another placement point); names come from the tool object |
-| Any feature on a face whose modification history changes | lost, see 2.4 (FreeCAD limitation) |
+| Any feature on an element whose modification history changes | name lost (2.4); recovered by history and geometry (2.5) |
 
 ## 6. Transparent previews (FreeCAD > 1.1)
 
