@@ -34,3 +34,4 @@ from SMTests.testUnfoldAccuracy import (
     TestOldUnfolderAccuracy,
     TestUnfoldAccuracy,
 )
+from SMTests.testPreview import TestPreview

@@ -174,7 +174,9 @@ def smSketchOnSheetMetal(kfactor=0.5, sketch="", flipped=False, selFaceNames="",
     return resultSolid
 
 
-class SMSketchOnSheet:
+class SMSketchOnSheet(SheetMetalTools.SMPreviewFeature):
+    previewMode = "remove"
+
     def __init__(self, obj, selobj, sel_items, selsketch):
         """Add Sketch based cut On Sheet metal."""
         _tip_ = FreeCAD.Qt.translate("App::Property", "Base Object")

@@ -884,6 +884,34 @@ if isGuiLoaded():
     # View providers for part and part design
     ###############################################################################################
 
+    # Same switch as PartDesign's "Show transparent preview" check box.
+    previewParams = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/PartDesign/Preview")
+
+
+    def smAttachPreview(vobj):
+        """Add the preview extensions to a feature and its view provider,
+        if FreeCAD and the feature support them. Must be called from the
+        view provider proxy's attach(), before FreeCAD attaches extensions.
+        """
+        if (smAddPreviewExtension(vobj.Object)
+                and smIsTypeAvailable(smViewPreviewExtension)
+                and not vobj.hasExtension(smViewPreviewExtension)):
+            vobj.addExtension(smViewPreviewExtension)
+
+
+    def smShowPreview(vobj, enable):
+        """Show or hide the transparent preview of what the feature adds
+        or removes (see SMPreviewFeature)."""
+        if (not smIsTypeAvailable(smViewPreviewExtension)
+                or not vobj.hasExtension(smViewPreviewExtension)):
+            return
+        if enable:
+            if not previewParams.GetBool("ShowTransparentPreview", True):
+                return
+            vobj.PreviewColor = smPreviewColors[vobj.Object.Proxy.previewMode]
+        vobj.showPreview(enable)
+
+
     class SMViewProvider:
         """A View provider for SheetMetal objects. Supports
          Part/Part-Design types.
@@ -895,6 +923,7 @@ if isGuiLoaded():
 
         def attach(self, obj):
             self.Object = obj.Object
+            smAttachPreview(obj)
             return
 
         def setupContextMenu(self, viewObject, menu):
@@ -954,9 +983,11 @@ if isGuiLoaded():
                 self.Object.ViewObject.Visibility = True
             FreeCAD.ActiveDocument.openTransaction(self.Object.Name)
             Gui.Control.showDialog(taskd)
+            smShowPreview(vobj, True)
             return True
 
-        def unsetEdit(self, _vobj, _mode):
+        def unsetEdit(self, vobj, _mode):
+            smShowPreview(vobj, False)
             Gui.Control.closeDialog()
             if hasattr(self.Object, "baseObject"):
                 self.Object.baseObject[0].ViewObject.Visibility = False
@@ -1157,6 +1188,77 @@ def smTagTool(tool, *key):
     keyStr = "/".join(str(k) for k in key)
     tool.Tag = -(zlib.crc32(keyStr.encode("utf-8")) & 0x3FFFFFFF) - 2
     return tool
+
+
+# Transparent previews of the material a feature adds or removes, shown
+# while the feature is edited. Needs Part::PreviewExtensionPython, which
+# FreeCAD 1.1.4 does not have; see docs/TNP.md section 6.
+smPreviewExtension = "Part::PreviewExtensionPython"
+smViewPreviewExtension = "PartGui::ViewProviderPreviewExtensionPython"
+# Same colours as PartDesign's additive and subtractive previews.
+smPreviewColors = {"add": (0.0, 1.0, 0.6), "remove": (1.0, 0.0, 0.0)}
+
+
+def smIsTypeAvailable(typeName):
+    return not FreeCAD.Base.TypeId.fromName(typeName).isBad()
+
+
+def smAddPreviewExtension(obj):
+    """Add the preview extension to a feature whose proxy supports it.
+
+    Returns whether the feature has the extension. The extension is saved
+    with the document; a FreeCAD without it prints an error for each such
+    object when loading the file, but the file still works.
+    """
+    # hasExtension() raises for a type FreeCAD does not know.
+    if not smIsTypeAvailable(smPreviewExtension):
+        return False
+    if obj.hasExtension(smPreviewExtension):
+        return True
+    if not isinstance(getattr(obj, "Proxy", None), SMPreviewFeature):
+        return False
+    obj.addExtension(smPreviewExtension)
+    return True
+
+
+def smPreviewDelta(baseShape, resultShape, mode):
+    """Return the material a feature added to baseShape (mode "add") or
+    removed from it (mode "remove") to get resultShape."""
+    if baseShape.isNull() or resultShape.isNull():
+        return Part.Shape()
+    if mode == "remove":
+        return baseShape.cut(resultShape)
+    return resultShape.cut(baseShape)
+
+
+class SMPreviewFeature:
+    """Mixin for feature proxies with a `baseObject` link.
+
+    Implements the hooks of Part::PreviewExtensionPython: the preview shows
+    the material the feature adds, or removes if `previewMode` is
+    "remove". It is computed from the recomputed shape, so it works for
+    every feature without changes to its geometry code.
+    """
+
+    previewMode = "add"
+
+    def recomputePreview(self, ext):
+        obj = ext.ExtendedObject
+        base = obj.baseObject[0] if getattr(obj, "baseObject", None) else None
+        delta = Part.Shape()
+        if base is not None:
+            try:
+                delta = smPreviewDelta(base.Shape, obj.Shape, self.previewMode)
+            except Part.OCCError:
+                pass
+        # The preview is drawn in the object's coordinate system.
+        delta.Placement = obj.Placement.inverse()
+        obj.PreviewShape = delta
+
+    def mustRecomputePreview(self, _ext):
+        # The preview follows obj.Shape, which changes when the object is
+        # recomputed, not when it is touched.
+        return True
 
 
 def smIsParallel(v1, v2):

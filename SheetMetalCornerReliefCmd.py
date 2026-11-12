@@ -673,8 +673,10 @@ def smCornerR(reliefsketch="Circle", size=3.0, ratio=1.0, xoffset=0.0, yoffset=0
 
     return resultSolid
 
-class SMCornerRelief:
+class SMCornerRelief(SheetMetalTools.SMPreviewFeature):
     """Add Corner Relief to SheetMetal Bends."""
+
+    previewMode = "remove"
 
     def __init__(self, obj, selobj, sel_items):
         _tip_ = FreeCAD.Qt.translate("App::Property", "Corner Relief Type")

@@ -221,7 +221,7 @@ def smExtrude(extLength=10.0, gap1=0.0, gap2=0.0, reversed=False, enableClearanc
         finalShape = finalShape.removeSplitter()
     return finalShape
 
-class SMExtrudeWall:
+class SMExtrudeWall(SheetMetalTools.SMPreviewFeature):
     def __init__(self, obj, selobj, sel_items, selSketch=None):
         """Add SheetMetal Wall by Extending."""
         _tip_ = translate("App::Property", "Length of Wall")

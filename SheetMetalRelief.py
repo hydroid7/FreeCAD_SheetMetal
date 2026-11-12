@@ -113,7 +113,9 @@ def smRelief(relief=2.0, selVertexNames=" ", MainObject=None):
     return resultSolid
 
 
-class SMRelief:
+class SMRelief(SheetMetalTools.SMPreviewFeature):
+    previewMode = "remove"
+
     def __init__(self, obj, selobj, sel_items):
         """Add Relief to Solid."""
         _tip_ = FreeCAD.Qt.translate("App::Property", "Relief Size")

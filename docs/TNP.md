@@ -332,3 +332,39 @@ feature-detected (`try: obj.addExtension(...)`).
   vext)`; newer: `PreviewRootNode`, `PreviewShapeNode`,
   `updatePreviewShape(shape, node)`.
 * Reference usage: `src/Mod/Part/TestPartPreview.py`.
+
+### 6.1 SheetMetal's use (branch `transparent-preview`)
+
+While a feature is edited, the material it adds is shown in PartDesign's
+additive colour and the material it removes in the subtractive colour.
+
+* **App side.** Feature proxies with a `baseObject` link inherit
+  `SheetMetalTools.SMPreviewFeature`: Wall, Extend, Hem, Fold, Forming
+  (`previewMode = "add"`), and Relief, Corner relief, Extruded cutout,
+  Wrap cutout (`"remove"`). Its `recomputePreview` computes the delta from
+  the recomputed shape (`smPreviewDelta`: result minus base, or base minus
+  result), so no geometry code had to change. The delta is placed in the
+  object's coordinate system, as PartDesign does. `mustRecomputePreview`
+  always returns True, because the preview depends on `Shape`, which
+  changes on recompute and not when the object is touched.
+* **View provider.** `SMViewProvider.attach` calls `smAttachPreview`,
+  which adds both extensions when FreeCAD has them. It must be called from
+  the proxy's `attach()`: FreeCAD attaches view provider extensions right
+  after it, and an extension added later never gets its scene graph.
+  `setEdit` / `unsetEdit` switch the preview on and off (`smShowPreview`),
+  honouring PartDesign's *Show transparent preview* setting
+  (`Mod/PartDesign/Preview/ShowTransparentPreview`).
+* **Compatibility.** On FreeCAD without the extension everything is a
+  no-op. `hasExtension()` raises for unknown types, so check
+  `smIsTypeAvailable()` first. The extensions are saved with the
+  document; an older FreeCAD prints `No extension found of type
+  'Part::PreviewExtensionPython'` for such objects but loads the file.
+* **Tests.** `SMTests/testPreview.py`. The delta and the proxy hooks are
+  tested on any version (with a stand-in property for `PreviewShape`); the
+  tests that use the real extension are skipped when it is missing.
+
+To test on a FreeCAD build that has the extension: run
+`FreeCADCmd -t SMTests.testPreview` (no skips expected), then in the GUI
+edit a Wall and an Extruded cutout, check the green / red overlay, change
+a parameter in the task panel and check the overlay follows, and close the
+panel with OK and with Cancel (the overlay must disappear).

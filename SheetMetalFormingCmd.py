@@ -106,7 +106,7 @@ def makeforming(tool, base, base_face, thk, tool_faces=None,
     return base
 
 
-class SMBendWall:
+class SMBendWall(SheetMetalTools.SMPreviewFeature):
     def __init__(self, obj, selobj, selobj_items, seltool, seltool_items):
         """Add Forming Wall."""
         _tip_ = translate("App::Property", "Suppress Forming Feature")

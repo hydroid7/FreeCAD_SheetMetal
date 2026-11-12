@@ -151,7 +151,7 @@ def generateTeardropHem(thickness, radius, width, includeBend, opening=0.0):
         raise ValueError("Width must be greater or equal than the bend width (equal to bend radius + thickness)")
 
 
-class SMHem:
+class SMHem(SheetMetalTools.SMPreviewFeature):
     def __init__(self, obj, selobj, sel_items, refAngOffset=None, checkRefFace=False):
         """Add Hem on an edge."""
         self.addVerifyProperties(obj, refAngOffset, checkRefFace)

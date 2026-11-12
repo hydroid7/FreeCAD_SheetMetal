@@ -224,7 +224,7 @@ def smFold(bendR=0.8, bendA=90.0, kfactor=1, invertbend=False, flipped=False, un
     return resultsolid
 
 
-class SMFoldWall:
+class SMFoldWall(SheetMetalTools.SMPreviewFeature):
     """Fold / Bend a SheetMetal with given Bend Radius."""
 
     def __init__(self, obj, selobj, sel_items, sel_sketch):

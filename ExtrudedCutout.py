@@ -35,7 +35,9 @@ SMException = SheetMetalTools.SMException
 smExtrudedCutoutDefaultVars = []
 
 
-class ExtrudedCutout:
+class ExtrudedCutout(SheetMetalTools.SMPreviewFeature):
+    previewMode = "remove"
+
     def __init__(self, obj, sketch, selected_face):
         """Initialize the parametric Sheet Metal Cut object and add
         properties.

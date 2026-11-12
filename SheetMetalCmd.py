@@ -1663,7 +1663,7 @@ def smBend(
     return resultSolid, thk_faceList
 
 
-class SMBendWall:
+class SMBendWall(SheetMetalTools.SMPreviewFeature):
     def __init__(self, obj, selobj, sel_items, refAngOffset=None, checkRefFace=False):
         """Add Wall with radius bend."""
         self.addVerifyProperties(obj, refAngOffset, checkRefFace)
